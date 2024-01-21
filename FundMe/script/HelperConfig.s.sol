@@ -63,4 +63,8 @@ contract HelperConfig is Script {
         DeployMockV3Aggregator deployMockV3Aggregator = new DeployMockV3Aggregator();
         priceFeed = deployMockV3Aggregator.run();
     }
+
+    function test() external {
+        //created only to ignore the forge coverage
+    }
 }

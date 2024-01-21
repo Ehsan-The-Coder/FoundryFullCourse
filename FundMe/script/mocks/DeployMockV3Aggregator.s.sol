@@ -13,4 +13,8 @@ contract DeployMockV3Aggregator is Script {
         priceFeed = address(new MockV3Aggregator(DECIMALS, INITIAL_ANSWER));
         vm.stopBroadcast();
     }
+
+    function test() external {
+        //created only to ignore the forge coverage
+    }
 }

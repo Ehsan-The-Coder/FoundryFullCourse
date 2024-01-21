@@ -18,4 +18,8 @@ contract DeployFundMe is Script {
         vm.stopBroadcast();
         return fundMe;
     }
+
+    function test() external {
+        //created only to ignore the forge coverage
+    }
 }
