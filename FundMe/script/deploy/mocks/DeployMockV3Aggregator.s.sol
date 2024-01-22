@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 
 pragma solidity 0.8.18;
+
 import {Script} from "forge-std/Script.sol";
-import {MockV3Aggregator} from "../../src/mocks/MockV3Aggregator.sol";
+import {MockV3Aggregator} from "../../../src/mocks/MockV3Aggregator.sol";
 
 contract DeployMockV3Aggregator is Script {
     uint8 private constant DECIMALS = 8;

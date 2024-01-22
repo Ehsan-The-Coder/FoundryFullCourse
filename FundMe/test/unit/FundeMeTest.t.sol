@@ -3,14 +3,15 @@ pragma solidity 0.8.18;
 import {Test, console} from "forge-std/Test.sol";
 import {Script} from "forge-std/Script.sol";
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
-import {PriceConverter} from "../src/PriceConverter.sol";
-import {FundMe} from "../src/FundMe.sol";
-import {DeployFundMe} from "../script/DeployFundMe.s.sol";
-import {HelperConfig} from "../script/HelperConfig.s.sol";
+import {MockPriceConverter} from "../../src/mocks/MockPriceConverter.sol";
+import {FundMe} from "../../src/FundMe.sol";
+import {DeployFundMe} from "../../script/deploy/DeployFundMe.s.sol";
+import {HelperConfig} from "../../script/deploy/HelperConfig.s.sol";
 
 contract FundMeTest is Test, Script {
-    using PriceConverter for uint256;
     FundMe fundMe;
+    AggregatorV3Interface priceFeed;
+    MockPriceConverter mockPriceConverter;
 
     uint256 public constant AMOUNT_TO_FUND = 1 ether;
     uint256 public constant USERS_START_BALANCE = 1000 ether;
@@ -29,10 +30,12 @@ contract FundMeTest is Test, Script {
     ];
 
     //<---------------------------------------helper modifier------------------------------------------>
-    modifier fund(uint256 userIndex) {
-        address user = users[userIndex];
-        vm.prank(user);
-        fundMe.fund{value: AMOUNT_TO_FUND}();
+    modifier fund() {
+        //given the function signature so fund function is called and tested
+        bytes memory dataCallInBytes = abi.encodePacked(
+            bytes4(keccak256("fund()"))
+        );
+        fundCallWithMultiple(dataCallInBytes);
         _;
     }
 
@@ -40,9 +43,9 @@ contract FundMeTest is Test, Script {
     function setUp() public {
         //deploy fund me
         DeployFundMe deployFundMe = new DeployFundMe();
-        fundMe = deployFundMe.run();
+        (fundMe, priceFeed, mockPriceConverter) = deployFundMe.run();
         //setup the owner at address 0
-        address owner = fundMe.i_owner();
+        address owner = fundMe.getOwner();
         users[OWNER_INDEX] = owner;
         fundUsersAccount();
     }
@@ -65,8 +68,10 @@ contract FundMeTest is Test, Script {
         uint256 contractBalanceBefore = address(fundMe).balance;
         uint256 totalAmountFunded = 0;
         uint256 userLength = users.length;
+        uint256 fundersLength;
         for (uint8 funderIndex = 0; funderIndex < userLength; funderIndex++) {
             address funder = users[funderIndex];
+            fundersLength = funderIndex + 1;
             totalAmountFunded += AMOUNT_TO_FUND;
             vm.prank(funder);
             //Act
@@ -75,8 +80,9 @@ contract FundMeTest is Test, Script {
             );
             //Assert
             assertEq(true, callSuccess);
-            assertEq(fundMe.addressToAmountFunded(funder), AMOUNT_TO_FUND);
-            assertEq(fundMe.funders(funderIndex), funder);
+            assertEq(fundMe.getAddressAmountFunded(funder), AMOUNT_TO_FUND);
+            assertEq(fundMe.getFunder(funderIndex), funder);
+            assertEq(fundMe.getFundersLength(), fundersLength);
         }
         //Arrange
         uint256 contractBalanceAfter = address(fundMe).balance;
@@ -89,12 +95,16 @@ contract FundMeTest is Test, Script {
 
     //<---------------------------------------test------------------------------------------>
     function testMinimumValue() public {
-        assertEq(fundMe.MINIMUM_USD(), 5e18);
+        assertEq(fundMe.getMinimumUSD(), 5e18);
+    }
+
+    function testPriceFeed() public {
+        assertEq(address(fundMe.getPriceFeed()), address(priceFeed));
     }
 
     function testOwnerIsMsgSender() public {
         address owner = users[OWNER_INDEX];
-        assertEq(fundMe.i_owner(), owner);
+        assertEq(fundMe.getOwner(), owner);
     }
 
     function testFundExpectRevert() public {
@@ -111,8 +121,9 @@ contract FundMeTest is Test, Script {
         //Act
         fundMe.fund{value: AMOUNT_TO_FUND}();
         //Assert
-        assertEq(fundMe.addressToAmountFunded(funder), AMOUNT_TO_FUND);
-        assertEq(fundMe.funders(0), funder);
+        assertEq(fundMe.getAddressAmountFunded(funder), AMOUNT_TO_FUND);
+        assertEq(fundMe.getFunder(0), funder);
+        assertEq(fundMe.getFundersLength(), 1);
         //Arrange
         uint256 contractBalanceAfter = address(fundMe).balance;
         //Assert
@@ -127,34 +138,28 @@ contract FundMeTest is Test, Script {
         fundCallWithMultiple(dataCallInBytes);
     }
 
-    function testWithdrawExpectRevertNotOwner() public fund(OWNER_INDEX) {
-        address user = users[OWNER_INDEX + 1]; //not owner
-        vm.prank(user);
+    function testWithdrawExpectRevertNotOwner() public fund {
+        address userNotOwner = users[OWNER_INDEX + 1]; //not owner
+        vm.prank(userNotOwner);
         vm.expectRevert();
         fundMe.withdraw();
     }
 
-    function testWithdraw() public fund(OWNER_INDEX) fund(OWNER_INDEX) {
+    function testWithdraw() public {
         // Arrange
-        address user = users[OWNER_INDEX];
-        uint256 balanceUserBeforeWithdraw = address(user).balance;
+        address owner = users[OWNER_INDEX];
+        uint256 balanceOwnerBeforeWithdraw = address(owner).balance;
         uint256 balanceContractBeforeWithdraw = address(fundMe).balance;
         //Act
-        vm.prank(user);
+        vm.prank(owner);
         fundMe.withdraw();
         //Assert
         assertEq(
-            address(user).balance,
-            balanceUserBeforeWithdraw + balanceContractBeforeWithdraw
+            address(owner).balance,
+            balanceOwnerBeforeWithdraw + balanceContractBeforeWithdraw
         );
         assertEq(address(fundMe).balance, 0);
-    }
-
-    function testFallback() public {
-        //data is passed so fallback function is trigered
-        string memory dataForCall = "fallaback is being called";
-        bytes memory dataCallInBytes = bytes(dataForCall);
-        fundCallWithMultiple(dataCallInBytes);
+        assertEq(fundMe.getFundersLength(), 0);
     }
 
     function testReceive() public {
@@ -167,5 +172,21 @@ contract FundMeTest is Test, Script {
     function testPriceFeedVersionIsAccurate() public {
         uint256 version = fundMe.getVersion();
         assertEq(version, 4);
+    }
+
+    function testGetPrice() public {
+        uint256 mockPriceRate = mockPriceConverter.getPrice(priceFeed);
+        uint256 actPriceRate = fundMe.getPrice();
+        assertEq(mockPriceRate, actPriceRate);
+    }
+
+    function testGetConversionRate() public {
+        uint256 mockRate = mockPriceConverter.getConversionRate(
+            AMOUNT_TO_FUND,
+            priceFeed
+        );
+        uint256 actRate = fundMe.getConversionRate(AMOUNT_TO_FUND);
+
+        assertEq(mockRate, actRate);
     }
 }
