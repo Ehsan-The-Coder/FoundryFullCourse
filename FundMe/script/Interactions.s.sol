@@ -32,18 +32,19 @@ contract FundFundMe is Script {
 }
 
 contract WithdrawFundMe is Script {
-    // FundMe private fundMe;
-    // AggregatorV3Interface private priceFeed;
-    // function withdrawFundMe(address recentContractAddress) public {
-    //     vm.startBroadcast();
-    //     uint256 balance = recentContractAddress.balance;
-    //     FundMe(payable(recentContractAddress)).withdraw();
-    //     vm.stopBroadcast();
-    //     console.log("You have successfully %s", balance);
-    // }
-    // function run() external {
-    //     DeployFundMe deployFundMe = new DeployFundMe();
-    //     (fundMe, priceFeed) = deployFundMe.run();
-    //     withdrawFundMe(address(fundMe));
-    // }
+    function withdrawFundMe(address recentContractAddress) public {
+        vm.startBroadcast();
+        uint256 balance = recentContractAddress.balance;
+        FundMe(payable(recentContractAddress)).withdraw();
+        vm.stopBroadcast();
+        console.log("You have successfully withdraw %s", balance);
+    }
+
+    function run() external {
+        address recentContractAddress = DevOpsTools.get_most_recent_deployment(
+            "FundMe",
+            block.chainid
+        );
+        withdrawFundMe(recentContractAddress);
+    }
 }
