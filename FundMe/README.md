@@ -1,66 +1,27 @@
-## Foundry
+# Foundry Project
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+This project is a funding application that allows users to fund a minimum amount to the owner. Only the owner can withdraw the funds. The project uses Chainlink Price Feeds to convert the funded amount to USD.
 
-Foundry consists of:
+## Files
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+1. `FundMe.sol`: This is the main contract of the project. It includes the logic for funding and withdrawing funds.
 
-## Documentation
+2. `PriceConverter.sol`: This is a library that provides utility functions for converting Ether amounts to USD and vice versa.
 
-https://book.getfoundry.sh/
+3. `DeployFundMe.s.sol`: This script deploys the `FundMe` contract and sets up the necessary configurations.
+
+4. `FundeMeTest.t.sol`: This is the test suite for the `FundMe` contract. It tests various functionalities of the contract.
 
 ## Usage
 
-### Build
+To deploy the contract, run the `DeployFundMe.s.sol` script. This will deploy the `FundMe` contract and return its instance along with the price feed and mock price converter.
 
-```shell
-$ forge build
-```
+To interact with the contract, you can call the `fund` function to fund the contract. The `withdraw` function can be called by the owner to withdraw all the funds.
 
-### Test
+To test the contract, run the `FundeMeTest.t.sol` script. This will execute all the tests defined in the script.
 
-```shell
-$ forge test
-```
+## License
 
-### Format
+This project is licensed under the MIT License.
 
-```shell
-$ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+# A Huge Thanks To Patrick Collins
